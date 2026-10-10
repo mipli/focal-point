@@ -416,19 +416,32 @@ function Colors.GetResolvedHealthBarColor(frame, config, currentHealth, maxHealt
         return healthR, healthG, healthB, healthA
     end
 
+    local lowHealthColorThreshold = config and config.lowHealthColorThreshold or 1.0
+    local currentHealthRatio = GetHealthPercent(currentHealth, maxHealth)
+    if currentHealthRatio then
+        if lowHealthColorThreshold < currentHealthRatio then
+            return healthR, healthG, healthB, healthA
+        end
+    end
+
     local lowR, lowG, lowB, lowA = UnpackColor(config and config.healthLowColor, { 1.0, 0.12, 0.12, healthA or 1 })
     lowR, lowG, lowB, lowA = SanitizeRGBA(lowR, lowG, lowB, lowA, 1.0, 0.12, 0.12, healthA or 1)
 
     if C_CurveUtil and C_CurveUtil.CreateColorCurve then
         local curve = C_CurveUtil.CreateColorCurve()
         if curve then
+            local curvePointOne = 0
+            local curvePointTwo = 0.3 * lowHealthColorThreshold
+            local curvePointThree = 0.75 * lowHealthColorThreshold
+            local curvePointFour = lowHealthColorThreshold
+            
             if curve.SetType and Enum and Enum.LuaCurveType and Enum.LuaCurveType.Linear then
                 curve:SetType(Enum.LuaCurveType.Linear)
             end
-            curve:AddPoint(0, BuildCurveColor(lowR, lowG, lowB, lowA))
-            curve:AddPoint(0.30, BuildCurveColor(lowR, lowG, lowB, lowA))
-            curve:AddPoint(0.75, BuildCurveColor(1.0, 0.84, 0.18, math.max(lowA or 1, healthA or 1)))
-            curve:AddPoint(1, BuildCurveColor(healthR, healthG, healthB, healthA))
+            curve:AddPoint(curvePointOne, BuildCurveColor(lowR, lowG, lowB, lowA))
+            curve:AddPoint(curvePointTwo, BuildCurveColor(lowR, lowG, lowB, lowA))
+            curve:AddPoint(curvePointThree, BuildCurveColor(1.0, 0.84, 0.18, math.max(lowA or 1, healthA or 1)))
+            curve:AddPoint(curvePointFour, BuildCurveColor(healthR, healthG, healthB, healthA))
 
             local resolvedR, resolvedG, resolvedB, resolvedA, resolvedFromPrediction = ResolvePredictionCurveColor(
                 prediction, curve, healthR, healthG, healthB, healthA
