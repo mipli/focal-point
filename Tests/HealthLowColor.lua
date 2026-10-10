@@ -200,4 +200,64 @@ Test("real derived-state reset invalidates provenance; layout/combat/reload mode
     Equal(f.created,1)
     local reloaded=Fixture();reloaded.Refresh();reloaded.Expect(.2,.7,.4,.6)
 end)
+Test("Threshold at 1.0 preserves existing behavior; full range curve from 0 to 100%",function()
+    local f=Fixture();f.NoPrediction();f.env.UnitHealthPercent=nil
+    f.config.lowHealthColorThreshold=1.0
+    for _,case in ipairs({{100,.2,.7,.4,.6},{75,1,.84,.18,.6},{30,1,.1,.1,.2},{0,1,.1,.1,.2}})do
+        f.current=case[1];f.Refresh();f.Expect(table.unpack(case,2))
+    end
+    Equal(f.bar.color[4],1)
+end)
+Test("Threshold at 0.5 returns normal color above 50%, uses scaled curve at or below",function()
+    local f=Fixture();f.NoPrediction();f.env.UnitHealthPercent=nil
+    f.config.lowHealthColorThreshold=0.5
+    f.current=60;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=51;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=50;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=37.5;f.Refresh();f.Expect(1,.84,.18,.6)
+    f.current=15;f.Refresh();f.Expect(1,.1,.1,.2)
+    f.current=0;f.Refresh();f.Expect(1,.1,.1,.2)
+end)
+Test("Threshold at 0.3 scales curve endpoints; health above threshold uses normal color",function()
+    local f=Fixture();f.NoPrediction();f.env.UnitHealthPercent=nil
+    f.config.lowHealthColorThreshold=0.3
+    f.current=100;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=50;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=31;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=30;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=22.5;f.Refresh();f.Expect(1,.84,.18,.6)
+    f.current=9;f.Refresh();f.Expect(1,.1,.1,.2)
+    f.current=0;f.Refresh();f.Expect(1,.1,.1,.2)
+end)
+Test("Curve point scaling respects threshold multipliers at each breakpoint",function()
+    local f=Fixture();f.NoPrediction();f.env.UnitHealthPercent=nil
+    f.config.lowHealthColorThreshold=0.4
+    f.current=0;f.Refresh();local curve=f.curve
+    Near(curve.points[1].x,0);Near(curve.points[2].x,0.12);Near(curve.points[3].x,0.3);Near(curve.points[4].x,0.4)
+    Near(curve.points[1].c[1],1);Near(curve.points[1].c[2],.1);Near(curve.points[1].c[3],.1)
+    Near(curve.points[4].c[1],.2);Near(curve.points[4].c[2],.7);Near(curve.points[4].c[3],.4)
+end)
+Test("Missing threshold config falls back to default 1.0 behavior",function()
+    local f=Fixture();f.NoPrediction();f.env.UnitHealthPercent=nil
+    f.config.lowHealthColorThreshold=nil
+    f.current=100;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.current=75;f.Refresh();f.Expect(1,.84,.18,.6)
+    f.current=30;f.Refresh();f.Expect(1,.1,.1,.2)
+end)
+Test("Threshold with class and reaction colors preserves endpoint precedence",function()
+    local f=Fixture();f.NoPrediction();f.env.UnitHealthPercent=nil
+    f.config.useClassColorHealth=true;f.config.lowHealthColorThreshold=0.5
+    f.current=60;f.Refresh();f.Expect(.1,.2,.9,.6)
+    f.current=50;f.Refresh();f.Expect(.1,.2,.9,.6)
+    f.current=0;f.Refresh();f.Expect(1,.1,.1,.2)
+    f.config.useClassColorHealth=false;f.config.useLowHealthColor=false
+    f.current=60;f.Refresh();f.Expect(.2,.7,.4,.6)
+end)
+Test("Threshold respects prediction and unit curve sources with scaled curve range",function()
+    local f=Fixture();f.current=f.Secret(60);f.maximum=f.Secret(100);f.config.lowHealthColorThreshold=0.5
+    f.percent=.6;f.Refresh();f.Expect(.2,.7,.4,.6);Equal(f.predictionCalls,1);assert(f.curves>0)
+    f.percent=.5;f.Refresh();f.Expect(.2,.7,.4,.6)
+    f.percent=0;f.Refresh();f.Expect(1,.1,.1,.2)
+    local curve=f.curve;Near(curve.points[4].x,0.5)
+end)
 print("Health Low Color: "..count.." groups PASS")
