@@ -484,6 +484,12 @@ function InspectorController.Build(container, state, options)
         LEFT_TO_RIGHT = L["OPTION_LEFT_TO_RIGHT"] or "Left to Right",
         RIGHT_TO_LEFT = L["OPTION_RIGHT_TO_LEFT"] or "Right to Left",
     }
+    local lowHealthThresholdList = {
+        ["1.0"] = L["OPTION_LOW_HEALTH_THRESHOLD_100"] or "100%",
+        ["0.75"] = L["OPTION_LOW_HEALTH_THRESHOLD_75"] or "75%",
+        ["0.5"] = L["OPTION_LOW_HEALTH_THRESHOLD_50"] or "50%",
+        ["0.3"] = L["OPTION_LOW_HEALTH_THRESHOLD_30"] or "30%",
+    }
 
     local function BuildDecorationTextureOptions(currentValue)
         if MediaOptionAdapter and MediaOptionAdapter.BuildDecorationDropdown then
@@ -2618,6 +2624,16 @@ function InspectorController.Build(container, state, options)
                 end,
                 disabled = unitConfig.useLowHealthColor == false,
             })
+
+            if isExpert then
+                AddPropertyDropdownRow(appearanceSection, L["OPTION_LOW_HEALTH_THRESHOLD"] or "Low Health Threshold", {
+                    list = lowHealthThresholdList,
+                    value = tostring(unitConfig.lowHealthColorThreshold or 1.0),
+                    onChanged = function(value)
+                        SetUnitField("lowHealthColorThreshold", tonumber(value))
+                    end,
+                }, unitConfig.useLowHealthColor == false)
+            end
         else
             AddCheckBox(appearanceSection, L["OPTION_USE_LOW_HEALTH_COLOR"] or "Use Low Health Color", unitConfig.useLowHealthColor ~= false, function(value)
                 SetUnitField("useLowHealthColor", value and true or false, healthSection)
@@ -2626,6 +2642,12 @@ function InspectorController.Build(container, state, options)
             AddColorPicker(appearanceSection, L["OPTION_LOW_HEALTH_COLOR"] or "Low Health Color", unitConfig.healthLowColor, true, function(value)
                 SetUnitField("healthLowColor", value)
             end, unitConfig.useLowHealthColor == false)
+
+            if isExpert then
+                AddDropdown(appearanceSection, L["OPTION_LOW_HEALTH_THRESHOLD"] or "Low Health Threshold", lowHealthThresholdList, tostring(unitConfig.lowHealthColorThreshold or 1.0), function(value)
+                    SetUnitField("lowHealthColorThreshold", tonumber(value))
+                end, unitConfig.useLowHealthColor == false)
+            end
         end
 
         if isQuick or isExpert then
